@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<script src="{{ url_for('static', filename='js/adminRoom.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+    <button id="startHost">
+        Begin Hosting!
+    </button>
+    <br>
+    <br>
+    <button id="downvote">
+        Downvote!
+    </button>
+    <br>
+    <br>
+    <input type="text" id="searchTerm" placeholder="Search for a song">
+    <button id="searchBtn">
+        Search!
+    </button>
+
+    <div id="songsList">
+    </div>
+{% endblock %}

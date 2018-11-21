@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>
+        Jukebox
+    </title>
+    <!-- import JS files -->
+    <script src="{{ url_for('static', filename='js/bootstrap/bootstrap.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/fontawesome.js') }}"></script>
+
+    <!-- import CSS files -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap/bootstrap.css') }}" />
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/fontawesome.css') }}" />
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}" />
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/animate.css') }}" />
+    {% block header %}
+    {% endblock %}
+</head>
+<body>
+    <div class="container-fluid">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>

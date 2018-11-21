@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+    <center style="padding-top:20vh;">
+        <h1>bluberry</h1>
+        <button type="button" id="authorize" class="btn btn-primary btn-lg">
+            Host
+        </button>
+    </center>
+{% endblock %}

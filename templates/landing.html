@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<script src="{{ url_for('static', filename='js/landing.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<center style="padding-top:20vh;">
+    <h1>bluberry</h1>
+    <button type="button" id="joinRoom" class="btn btn-primary btn-lg">
+        join room
+    </button>
+    <form>
+        <input type="text" id="nameInput" placeholder="What's your name?">
+        <br>
+        <button type="button" onclick="redirToRoom()" id="continue" class="btn btn-primary btn-lg">
+            continue to room
+        </button>
+    </form>
+</center>
+{% endblock %}
