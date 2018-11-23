@@ -14,7 +14,7 @@ body {
 }
 
 #songDiv {
-    width: 100%;
+    width: 80%;
     margin-top: 15vh;
     height: 70vh;
     overflow: auto;
@@ -46,6 +46,17 @@ body {
     border: none !important;
 }
 
+#userQueue {
+    position: fixed;
+    right: 0px;
+    bottom: 0px;
+    height: 85vh;
+    width: 20%;
+    border-left: 2px solid #444;
+    padding: 5px;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
 
 #songQueue {
     position: fixed;
@@ -53,7 +64,6 @@ body {
     bottom: 0px;
     height: 15vh;
     width:80%;
-    border-right: 2px solid #444;
     border-top: 2px solid #444;
     padding: 5px;
     white-space: nowrap;
@@ -62,12 +72,10 @@ body {
 }
 
 #searchDiv {
-    position: fixed;
-    right: 0px;
-    bottom: 0px;
-    height: 15vh;
-    width:20%;
-    border-left: 2px solid #444;
-    border-top: 2px solid #444;
     padding: 5px;
+}
+
+#searchBtn {
+    font-size: 34px;
+    border: none;
 }

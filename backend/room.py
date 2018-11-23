@@ -33,7 +33,7 @@ def get_token(code):
     client_id = "17c0a7046ec0463584f357c64e8ad530"
     client_secret = "a4d42e12a0384883b441801ff51ff772"
     url = "https://accounts.spotify.com/api/token"
-    redirectURI = "http://192.168.1.185:5000/room"
+    redirectURI = "http://:10.0.2.15:5000/room"
 
     body = {
         "grant_type": "authorization_code",

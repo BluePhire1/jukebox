@@ -3,7 +3,22 @@
  * 
  * @author Jon Downs
  */
+
+ var socket; // Global socket variable
+ var queue = [];
+
 window.onload = function () {
+    /** Socket connection */
+    socket = io.connect('http://10.0.2.15:5000');
+        socket.on('connect', function() {
+            socket.on('addGlobalQueue', function(data) {
+                console.log(data);
+                updateSongQueue(data);
+            });
+
+            socket.send('queue', {"test": 1}); // TODO - Sockets not working!
+        });
+
     /*************** Search Button ***************/
     document.getElementById("searchBtn").onclick = function() {
         // Search for a song
@@ -86,28 +101,84 @@ function showSongs(songs) {
 function addToQueue(uri, duration, songData, elem) {
     var node = elem.target;
     var userID = getCookie("user_id");
+    var albumImg = songData["album"]["images"][0]["url"];
     // Add song to queue visually
-    var queueImg = document.createElement("img");
-    queueImg.src = songData["album"]["images"][0]["url"];
-    queueImg.style.height = "calc(15vh - 10px)";
-    document.getElementById("songQueue").appendChild(queueImg);
+
+    var userQueueImg = document.createElement("img");
+    userQueueImg.src = albumImg
+    userQueueImg.style.width = "20vw";
+    document.getElementById("userQueue").prepend(userQueueImg);
+
     // Color in div.
     node.style.backgroundColor = "#4f86f7";
 
+    queue.push([uri, albumImg, duration]);
+
+    console.log("Sending...");
+    socket.emit('queue', 
+    {
+        "queue": queue,
+        "userID": userID
+    });
+    console.log("done");
+
+    // fetch("/editSongQueue/" + JSON.stringify(queue) + "/" + userID, {
+    //     method: "POST",
+    //     credentials: "omit",
+    //     headers: {
+    //         "Content-Type": "application/json"
+    //     }
+    // }).then(res => res.json()).then(
+    //     response => console.log(response),
+    //     socket.emit('addToQueue', 
+    //     {
+    //         "queue": queue,
+    //         "userID": userID
+    //     })
+    // )
+    // .catch(
+    //     error => console.error("Error!", error)
+    // )
+
     // Add song to queue backend.
-    fetch("/queueSong/" + uri + "/" + duration + "/" + userID, {
-        method: "POST",
-        credentials: "omit",
-        headers: {
-            "Content-Type": "application/json"
-        }
-    }).then(res => res.json()).then(
-        response => console.log(response)
-    )
-    .catch(
-        error => console.error("Error!", error)
-    )
+    // fetch("/queueSong/" + uri + "/" + duration + "/" + userID, {
+    //     method: "POST",
+    //     credentials: "omit",
+    //     headers: {
+    //         "Content-Type": "application/json"
+    //     }
+    // }).then(res => res.json()).then(
+    //     response => console.log(response),
+    //     console.log("here"),
+    //     socket.emit('addToQueue', 
+    //     {
+    //         "uri": uri,
+    //         "duration": duration,
+    //         "userID": userID
+    //     })
+    // )
+    // .catch(
+    //     error => console.error("Error!", error)
+    // )
 }
+
+function updateSongQueue(queue) {
+    document.getElementById("songQueue").innerHTML = "";
+    for (let song of queue) {
+        var userID = song[0];
+        var albumImg = song[1][1];
+
+
+        var queueImg = document.createElement("img");
+        queueImg.src = albumImg;
+        queueImg.style.height = "calc(15vh - 10px)";
+        if (userID == getCookie("user_id")) {
+            queueImg.style.border = "2px solid blue";
+        }
+        document.getElementById("songQueue").appendChild(queueImg);
+    }
+}
+
 
 // From w3schools <3
 function getCookie(cname) {

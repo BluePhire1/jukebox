@@ -1,16 +1,26 @@
-from flask import Flask, render_template, request, make_response
+#!/usr/bin/python2
+
+from flask import Flask, render_template, request, make_response, redirect
 import json
 import requests
 import base64
 import time
 import uuid
 import sys
+from flask_socketio import SocketIO 
 from collections import OrderedDict
 
+
+
+from flask_cors import CORS
 app = Flask(__name__)
+cors = CORS(app,resources={r"/*":{"origins":"*"}})
+socketio = SocketIO(app)
 
 @app.route("/", methods=["GET"])
 def home():
+    if (request.cookies.get("user_id")):
+        return redirect("/room", code=302)
     return render_template("/landing.html")
 
 @app.route("/admin", methods=["GET"])
@@ -43,7 +53,7 @@ def room():
 
 ''' GLOBAL VARIABLES '''
 token = "" # TEMPORARY, STORE THIS IN A DB FOR PRODUCTION
-recent_songs = [] # List of     up to 5 last songs to use for radio play
+recent_songs = [] # List of up to 5 last songs to use for radio play
 durations = {} # looks like: {spotify_uri: duration}
 user_queue =  OrderedDict() # Keeps track of each user's song queue using unique user_id
 hosting = False
@@ -81,6 +91,25 @@ def queue_song(song, duration, user_id):
     user_queue[user_id] = [song] + user_queue[user_id]
 
     durations[song] = int(duration)
+    return json.dumps({"queue": str(user_queue)})
+
+@app.route("/editSongQueue/<song_queue>/<user_id>", methods=["GET", "POST"])
+def edit_song_queue(song_queue, user_id):
+    print(song_queue)
+    global user_queue, durations
+    if not user_id:
+        return json.dumps({"error": "No user id assigned!"})
+    
+    # Set user_id song queue to what was received from frontend
+    if user_id not in user_queue:
+        user_queue[user_id] = []
+    song_queue = json.loads(song_queue)
+    user_queue[user_id] = []
+    for song in song_queue:
+        user_queue[user_id].append([song[0], song[1]])
+        durations[song[0]] = int(song[2])
+
+    print(user_queue)
     return json.dumps({"queue": str(user_queue)})
 
 # Starts host that plays queued songs
@@ -129,6 +158,8 @@ def generate_user_id():
 # Get token using the authorization code when going into the room.
 # @param code - Auth Code from user accepting Spotify TOS.
 def get_token(code):
+    import sys
+    print(sys.version)
     global token
     print(token)
     if token != "":
@@ -136,7 +167,7 @@ def get_token(code):
     client_id = "17c0a7046ec0463584f357c64e8ad530"
     client_secret = "a4d42e12a0384883b441801ff51ff772"
     url = "https://accounts.spotify.com/api/token"
-    redirectURI = "http://192.168.1.185:5000/adminRoom"
+    redirectURI = "http://10.0.2.15:5000/adminRoom"
 
     body = {
         "grant_type": "authorization_code",
@@ -218,7 +249,7 @@ def get_next_song():
             break
 
     if not next_song:
-        next_song = user_queue[curr_id].pop()
+        next_song = user_queue[curr_id].pop()[0]
         duration = durations.pop(next_song)
 
     # Only store song ID in recent_songs
@@ -248,3 +279,45 @@ def play_song():
     # Reset all downvotes to 0
     downvotes = downvotes.fromkeys(downvotes, 0)
     return duration
+
+# Socket stuff below!
+
+@socketio.on('queue')
+def get_song_queue(json):
+    print("in here")
+    edit_song_queue(json["queue"], json["userID"])
+    print("Adding to queue...")
+    global_queue = get_global_queue()
+    socketio.emit('addGlobalQueue', global_queue)
+
+@socketio.on('connect')
+def socket_connected():
+    print("CONNECTED!")
+
+# Gets all songs in order to be played to return to frontend.
+def get_global_queue():
+    # Next index and id used since curr_id curr_index are currently playing, not in queue.
+    # Copy user_queue locally to pop stuff.
+    global_queue = user_queue
+    if curr_id:
+        next_index = (list(global_queue.keys()).index(curr_id) + 1) % len(global_queue)
+    else:
+        next_index = global_queue[global_queue.keys()[0]]
+    return_queue = []
+
+    # Build return queue as list of lists
+    while len(global_queue) > 0:
+        next_id = list(user_queue.keys())[next_index]
+        if len(global_queue[next_id]) > 0:
+            return_queue = [next_id, global_queue.pop()] + return_queue
+        else:
+            global_queue.remove(next_id)
+        next_index = (list(global_queue.keys()).index(next_id) + 1) % len(global_queue)
+
+    print("DONE")
+    print(return_queue)
+    return return_queue
+
+# Main call
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0')
