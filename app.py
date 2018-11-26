@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-from flask import Flask, render_template, request, make_response, redirect
+from flask import Flask, Response, render_template, request, make_response, redirect
 import json
 import requests
 import base64
@@ -103,7 +103,7 @@ def edit_song_queue(song_queue, user_id):
     # Set user_id song queue to what was received from frontend
     if user_id not in user_queue:
         user_queue[user_id] = []
-    song_queue = json.loads(song_queue)
+    # song_queue = json.loads(song_queue)
     user_queue[user_id] = []
     for song in song_queue:
         user_queue[user_id].append([song[0], song[1]])
@@ -138,6 +138,15 @@ def start_host():
         hosting = False
         return json.dumps({"error": str(e)})
     return json.dumps({"error": "No songs queued up!"})
+
+@app.route("/sse")
+def sse():
+    def test():
+        while 1:
+            print("hi")
+            yield "hello"
+            time.sleep(5)
+    return Response(test(), mimetype="text/event-stream")
 
 # Returns True if song has enough downvotes to go to next one.
 # False otherwise.
@@ -284,7 +293,6 @@ def play_song():
 
 @socketio.on('queue')
 def get_song_queue(json):
-    print("in here")
     edit_song_queue(json["queue"], json["userID"])
     print("Adding to queue...")
     global_queue = get_global_queue()
@@ -302,17 +310,21 @@ def get_global_queue():
     if curr_id:
         next_index = (list(global_queue.keys()).index(curr_id) + 1) % len(global_queue)
     else:
-        next_index = global_queue[global_queue.keys()[0]]
+        next_index = 0
     return_queue = []
 
     # Build return queue as list of lists
-    while len(global_queue) > 0:
+    while 1:
+        print("Global Queue: ", global_queue, "\n\n")
         next_id = list(user_queue.keys())[next_index]
         if len(global_queue[next_id]) > 0:
-            return_queue = [next_id, global_queue.pop()] + return_queue
+            return_queue = [next_id, global_queue.pop(next_id)] + return_queue
         else:
             global_queue.remove(next_id)
-        next_index = (list(global_queue.keys()).index(next_id) + 1) % len(global_queue)
+
+        if len(global_queue) == 0:
+            break
+        next_index = next_index + 1 % len(global_queue)
 
     print("DONE")
     print(return_queue)

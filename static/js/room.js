@@ -10,14 +10,19 @@
 window.onload = function () {
     /** Socket connection */
     socket = io.connect('http://10.0.2.15:5000');
-        socket.on('connect', function() {
-            socket.on('addGlobalQueue', function(data) {
-                console.log(data);
-                updateSongQueue(data);
-            });
-
-            socket.send('queue', {"test": 1}); // TODO - Sockets not working!
+    socket.on('connect', function() {
+        socket.on('addGlobalQueue', function(data) {
+            console.log(data);
+            updateSongQueue(data);
         });
+    });
+
+    // Serverside event
+    var evtSource = new EventSource("sse");
+    evtSource.onmessage = function(e) {
+        console.log("WORKS");   // TODO - doesnt work yet
+        console.log(e.data);
+    }
 
     /*************** Search Button ***************/
     document.getElementById("searchBtn").onclick = function() {
@@ -65,6 +70,11 @@ window.onload = function () {
         )
     }
 };
+
+
+window.onunload = function() {
+    socket.close();
+}
 
 function showSongs(songs) {
     console.log(songs);
@@ -119,8 +129,9 @@ function addToQueue(uri, duration, songData, elem) {
     {
         "queue": queue,
         "userID": userID
+    }, function() {
+        console.log("done");
     });
-    console.log("done");
 
     // fetch("/editSongQueue/" + JSON.stringify(queue) + "/" + userID, {
     //     method: "POST",
@@ -162,20 +173,25 @@ function addToQueue(uri, duration, songData, elem) {
     // )
 }
 
+
+// TODO - Queue is coming in as [userID, [ [song],[song] ] ]
+// i dont think we want this, we want array of arrays only.
+glob_q = []
 function updateSongQueue(queue) {
+    glob_q = queue;
     document.getElementById("songQueue").innerHTML = "";
-    for (let song of queue) {
-        var userID = song[0];
-        var albumImg = song[1][1];
-
-
-        var queueImg = document.createElement("img");
-        queueImg.src = albumImg;
-        queueImg.style.height = "calc(15vh - 10px)";
-        if (userID == getCookie("user_id")) {
-            queueImg.style.border = "2px solid blue";
+    for (let user of queue) {
+        var userID = user[0];
+        for (let song of user[1]) {
+            var albumImg = song[1];
+            var queueImg = document.createElement("img");
+            queueImg.src = albumImg;
+            queueImg.style.height = "calc(15vh - 10px)";
+            if (userID == getCookie("user_id")) {
+                queueImg.style.border = "2px solid blue";
+            }
+            document.getElementById("songQueue").appendChild(queueImg);
         }
-        document.getElementById("songQueue").appendChild(queueImg);
     }
 }
 
