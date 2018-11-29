@@ -7,19 +7,20 @@ import base64
 import time
 import uuid
 import sys
-from flask_socketio import SocketIO 
+import copy
+import os
+# from flask_socketio import SocketIO 
 from collections import OrderedDict
 
-
-
-from flask_cors import CORS
 app = Flask(__name__)
-cors = CORS(app,resources={r"/*":{"origins":"*"}})
-socketio = SocketIO(app)
+
+# from flask_cors import CORS
+# cors = CORS(app,resources={r"/*":{"origins":"*"}})
+# socketio = SocketIO(app)
 
 @app.route("/", methods=["GET"])
 def home():
-    if (request.cookies.get("user_id")):
+    if (request.cookies.get("user_name")):
         return redirect("/room", code=302)
     return render_template("/landing.html")
 
@@ -30,9 +31,10 @@ def admin():
 @app.route("/adminRoom", methods=["GET", "POST"])
 def adminRoom():
     global user_queue
+
     code = request.args.get("code")
-    print(code)
-    token = get_token(code)
+    set_token(code)
+
     user_id = request.cookies.get("user_id")
     if user_id:
         print("Retrieved user id: %s" % user_id)
@@ -49,6 +51,27 @@ def adminRoom():
 
 @app.route("/room", methods=["GET", "POST"])
 def room():
+    if not request.cookies.get("user_name"):
+        return redirect("/", code=302)
+    ########################################
+    global user_queue
+    user_id = request.cookies.get("user_id")
+    if user_id:
+        print("Retrieved user id: %s" % user_id)
+        if user_id not in user_queue:
+            user_queue[user_id] = []
+        if user_id not in downvotes:
+            downvotes[user_id] = 0
+        return render_template("/room.html", user_id=user_id)
+    else:
+        user_id = generate_user_id()
+        user_queue[user_id] = []
+        downvotes[user_id] = 0
+        resp = make_response(render_template("/room.html", user_id=user_id))
+        resp.set_cookie('user_id', user_id)
+        return resp
+
+
     return render_template("/room.html")
 
 ''' GLOBAL VARIABLES '''
@@ -56,6 +79,7 @@ token = "" # TEMPORARY, STORE THIS IN A DB FOR PRODUCTION
 recent_songs = [] # List of up to 5 last songs to use for radio play
 durations = {} # looks like: {spotify_uri: duration}
 user_queue =  OrderedDict() # Keeps track of each user's song queue using unique user_id
+global_queue = [] # List of songs to be played, in order.
 hosting = False
 curr_id = None
 downvotes = {} # Downvotes for current song, unique by user_id
@@ -85,7 +109,7 @@ def queue_song(song, duration, user_id):
     if not user_id:
         return json.dumps({"error": "No user id assigned!"})
     
-    # Add song to orderedDict
+    # Add song to orderedDict   
     if user_id not in user_queue:
         user_queue[user_id] = []
     user_queue[user_id] = [song] + user_queue[user_id]
@@ -93,10 +117,10 @@ def queue_song(song, duration, user_id):
     durations[song] = int(duration)
     return json.dumps({"queue": str(user_queue)})
 
-@app.route("/editSongQueue/<song_queue>/<user_id>", methods=["GET", "POST"])
-def edit_song_queue(song_queue, user_id):
-    print(song_queue)
-    global user_queue, durations
+@app.route("/editSongQueue/<user_id>", methods=["GET", "POST"])
+def edit_song_queue(user_id):
+    global user_queue, durations, global_queue
+    song_queue = request.get_json()["song_queue"]
     if not user_id:
         return json.dumps({"error": "No user id assigned!"})
     
@@ -109,7 +133,7 @@ def edit_song_queue(song_queue, user_id):
         user_queue[user_id].append([song[0], song[1]])
         durations[song[0]] = int(song[2])
 
-    print(user_queue)
+    global_queue = get_global_queue()
     return json.dumps({"queue": str(user_queue)})
 
 # Starts host that plays queued songs
@@ -139,15 +163,6 @@ def start_host():
         return json.dumps({"error": str(e)})
     return json.dumps({"error": "No songs queued up!"})
 
-@app.route("/sse")
-def sse():
-    def test():
-        while 1:
-            print("hi")
-            yield "hello"
-            time.sleep(5)
-    return Response(test(), mimetype="text/event-stream")
-
 # Returns True if song has enough downvotes to go to next one.
 # False otherwise.
 def downvoted():
@@ -166,17 +181,15 @@ def generate_user_id():
 
 # Get token using the authorization code when going into the room.
 # @param code - Auth Code from user accepting Spotify TOS.
-def get_token(code):
-    import sys
-    print(sys.version)
+def set_token(code):
     global token
-    print(token)
     if token != "":
         return
     client_id = "17c0a7046ec0463584f357c64e8ad530"
-    client_secret = "a4d42e12a0384883b441801ff51ff772"
+    client_secret = str(os.environ['spotify_secret'])
+
     url = "https://accounts.spotify.com/api/token"
-    redirectURI = "http://10.0.2.15:5000/adminRoom"
+    redirectURI = "http://192.168.1.185:5000/adminRoom"
 
     body = {
         "grant_type": "authorization_code",
@@ -189,7 +202,6 @@ def get_token(code):
         "Authorization": "Basic %s" % (base64.b64encode(client_id + ":" + client_secret))
     }
     r = requests.post(url, data=body, headers=headers)
-    print(r.json())
     token = r.json()["access_token"] 
     return r.json()["access_token"]
 
@@ -246,7 +258,7 @@ def get_next_song():
     # If they have no song, go to next one.
     start_id = curr_id
     next_song = None
-    print(user_queue)
+
     while len(user_queue[curr_id]) == 0:
         # Increment to next user_id (circularly)
         curr_index = (list(user_queue.keys()).index(curr_id) + 1) % len(user_queue)
@@ -289,47 +301,59 @@ def play_song():
     downvotes = downvotes.fromkeys(downvotes, 0)
     return duration
 
-# Socket stuff below!
+# # Socket stuff below!
 
-@socketio.on('queue')
-def get_song_queue(json):
-    edit_song_queue(json["queue"], json["userID"])
-    print("Adding to queue...")
-    global_queue = get_global_queue()
-    socketio.emit('addGlobalQueue', global_queue)
+# @socketio.on('queue')
+# def get_song_queue(json):
+#     edit_song_queue(json["queue"], json["userID"])
+#     print("Adding to queue...")
+#     global_queue = get_global_queue()
+#     socketio.emit('addGlobalQueue', global_queue)
 
-@socketio.on('connect')
-def socket_connected():
-    print("CONNECTED!")
+# @socketio.on('connect')
+# def socket_connected():
+#     print("CONNECTED!")
+
+# SSE Stuff below
+
+@app.route("/queue")
+def get_queue():
+    def curr_queue():
+        while 1:
+            yield "data: %s\n\n" % json.dumps(global_queue)
+            time.sleep(2)
+    return Response(curr_queue(), mimetype="text/event-stream")
+
 
 # Gets all songs in order to be played to return to frontend.
 def get_global_queue():
     # Next index and id used since curr_id curr_index are currently playing, not in queue.
     # Copy user_queue locally to pop stuff.
-    global_queue = user_queue
+    glob_q = copy.deepcopy(user_queue)
     if curr_id:
-        next_index = (list(global_queue.keys()).index(curr_id) + 1) % len(global_queue)
+        next_index = (list(glob_q.keys()).index(curr_id) + 1) % len(glob_q)
     else:
         next_index = 0
+
+    # return_queue holds list of songs to be played, in order
     return_queue = []
 
     # Build return queue as list of lists
-    while 1:
-        print("Global Queue: ", global_queue, "\n\n")
-        next_id = list(user_queue.keys())[next_index]
-        if len(global_queue[next_id]) > 0:
-            return_queue = [next_id, global_queue.pop(next_id)] + return_queue
+    while len(glob_q) > 0:
+        next_id = list(glob_q.keys())[next_index]
+        if len(glob_q[next_id]) > 0:
+            return_queue = [[next_id, glob_q[next_id].pop()]] + return_queue
         else:
-            global_queue.remove(next_id)
+            del glob_q[next_id]
 
-        if len(global_queue) == 0:
-            break
-        next_index = next_index + 1 % len(global_queue)
+        if len(glob_q) > 0:
+            next_index = next_index + 1 % len(glob_q)
 
-    print("DONE")
-    print(return_queue)
     return return_queue
 
+
 # Main call
-if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0')
+# if __name__ == '__main__':
+#     socketio.run(app, host='0.0.0.0')
+
+# TODO - Phone not saving cookies

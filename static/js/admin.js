@@ -1,7 +1,7 @@
 window.onload = function () {
     document.getElementById("authorize").onclick = function() {
         var clientID = "17c0a7046ec0463584f357c64e8ad530"
-        var redirectURI = "http://10.0.2.15:5000/adminRoom";
+        var redirectURI = "http://192.168.1.185:5000/adminRoom";
         var scopes = 'user-modify-playback-state ' + 
         'user-read-private ' + 
         'user-read-email ' + 

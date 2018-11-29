@@ -57,5 +57,16 @@ function hideContinue() {
 }
 
 function redirToRoom() {
+    // Store cookies first
+    var username = document.getElementById("nameInput").value;
+    setCookie("user_name", username, 360)
     window.location.replace("/room");
+}
+
+// Stackoverflow <3
+function setCookie(cname, cvalue, exdays) {
+    var d = new Date();
+    d.setTime(d.getTime() + (exdays*24*60*60*1000));
+    var expires = "expires="+ d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
 }
