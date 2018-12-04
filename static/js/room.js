@@ -8,6 +8,15 @@
 
 var queue = [];
 var glob_queue = []
+var queueEvent;
+var curr_song;
+
+
+window.onunload = function() {
+    if (queueEvent) {
+        queueEvent.close();
+    }
+}
 
 window.onload = function () {
     // /** Socket connection */
@@ -20,16 +29,24 @@ window.onload = function () {
     // });
 
     // Serverside event
-    var queueEvent = new EventSource("queue");
-    queueEvent.onmessage = function(e) {
+    queueEvent = new EventSource("queue");
+    queueEvent.onmessage = function (e) {
         var ret_queue = JSON.parse(e.data);
-        if (ret_queue.toString() != glob_queue.toString()) {
-            updateSongQueue(JSON.parse(e.data));
+        if (ret_queue["glob_queue"].toString() != glob_queue.toString()) {
+            updateSongQueue(ret_queue["glob_queue"]);
+        }
+        if (ret_queue["user_queue"][getCookie("user_id")].toString() != queue.toString()) {
+            updateUserQueue(ret_queue["user_queue"]);
+        }
+        if (ret_queue["curr_song"] != curr_song) {
+            curr_song = ret_queue["curr_song"];
+            updateCurrSong();
+            // updateUserQueue(ret_queue["user_queue"]);
         }
     }
 
     /*************** Search Button ***************/
-    document.getElementById("searchBtn").onclick = function() {
+    document.getElementById("searchBtn").onclick = function () {
         // Search for a song
         var searchTerm = encodeURI(document.getElementById("searchTerm").value);
         fetch("/search/" + searchTerm, {
@@ -41,13 +58,13 @@ window.onload = function () {
         }).then(res => res.json()).then(
             response => showSongs(response)
         )
-        .catch(
-            error => console.error("Error!", error)
-        )
+            .catch(
+                error => console.error("Error!", error)
+            )
     }
 
     /*************** Downvote Button ***************/
-    document.getElementById("downvote").onclick = function(e) {
+    document.getElementById("downvote").onclick = function (e) {
         var node = e.target;
         if (node.classList.contains("btn-outline-light")) {
             node.classList.remove("btn-outline-light");
@@ -69,9 +86,9 @@ window.onload = function () {
         }).then(res => res.json()).then(
             response => console.log(response)
         )
-        .catch(
-            error => console.error("Error!", error)
-        )
+            .catch(
+                error => console.error("Error!", error)
+            )
     }
 };
 
@@ -86,7 +103,7 @@ function showSongs(songs) {
     document.getElementById("songsList").innerHTML = "";
     for (let song of songs["tracks"]["items"]) {
         // Try to get album image
-            var img = document.createElement("img");
+        var img = document.createElement("img");
         try {
             var albumImg = song["album"]["images"][0]["url"];
             img.src = albumImg;
@@ -99,7 +116,7 @@ function showSongs(songs) {
 
         node.className = "list-group-item list-group-item-dark songpos-" + count;
 
-        node.onclick = function(e) {
+        node.onclick = function (e) {
             addToQueue(song["uri"], song["duration_ms"], song, e);
         }
         var name = document.createTextNode(song["name"]);
@@ -121,7 +138,7 @@ function addToQueue(uri, duration, songData, elem) {
     var userQueueImg = document.createElement("img");
     userQueueImg.src = albumImg
     userQueueImg.style.width = "20vw";
-    document.getElementById("userQueue").append(userQueueImg);
+    document.getElementById("userQueue").appendChild(userQueueImg);
 
     // Color in div.
     node.style.backgroundColor = "#4f86f7";
@@ -129,7 +146,7 @@ function addToQueue(uri, duration, songData, elem) {
     queue.push([uri, albumImg, duration]);
 
     fetch("/editSongQueue/" + userID, {
-        body: JSON.stringify({"song_queue": queue}),
+        body: JSON.stringify({ "song_queue": queue }),
         method: "POST",
         credentials: "omit",
         headers: {
@@ -138,9 +155,9 @@ function addToQueue(uri, duration, songData, elem) {
     }).then(res => res.json()).then(
         response => console.log(response)
     )
-    .catch(
-        error => console.error("Error!", error)
-    )
+        .catch(
+            error => console.error("Error!", error)
+        )
 
     // Add song to queue backend.
     // fetch("/queueSong/" + uri + "/" + duration + "/" + userID, {
@@ -164,11 +181,27 @@ function addToQueue(uri, duration, songData, elem) {
     // )
 }
 
-function updateSongQueue(queue) {
-    glob_queue = queue;
+// Add and remove songs from user queue.
+function updateUserQueue(updated_queue) {
+    queue = updated_queue[getCookie("user_id")];
+    console.log("Updating user queue!");
+    document.getElementById("userQueue").innerHTML = "";
+    for (let song of queue) {
+        var songInfo = song[0];
+        // Note: songInfo[0] is song URI
+        var albumImg = song[1];
+        var queueImg = document.createElement("img");
+        queueImg.src = albumImg;
+        queueImg.style.width = "20vw";
+        document.getElementById("userQueue").appendChild(queueImg);
+    }
+}
+
+function updateSongQueue(updated_queue) {
+    glob_queue = updated_queue;
     console.log("Updating global queue!");
     document.getElementById("songQueue").innerHTML = "";
-    for (let user of queue) {
+    for (let user of updated_queue) {
         var userID = user[0];
         var songInfo = user[1];
         // Note: songInfo[0] is song URI
@@ -183,13 +216,16 @@ function updateSongQueue(queue) {
     }
 }
 
+function updateCurrSong() {
+    // TODO - update current song img at top
+}
 
 // From w3schools <3
 function getCookie(cname) {
     var name = cname + "=";
     var decodedCookie = decodeURIComponent(document.cookie);
     var ca = decodedCookie.split(';');
-    for(var i = 0; i <ca.length; i++) {
+    for (var i = 0; i < ca.length; i++) {
         var c = ca[i];
         while (c.charAt(0) == ' ') {
             c = c.substring(1);

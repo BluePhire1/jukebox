@@ -82,6 +82,7 @@ user_queue =  OrderedDict() # Keeps track of each user's song queue using unique
 global_queue = [] # List of songs to be played, in order.
 hosting = False
 curr_id = None
+curr_playing_song = [] # looks like [album img, song uri]
 downvotes = {} # Downvotes for current song, unique by user_id
 
 # Flips vote from downvote to nothing (1 to 0) or vice versa
@@ -117,6 +118,7 @@ def queue_song(song, duration, user_id):
     durations[song] = int(duration)
     return json.dumps({"queue": str(user_queue)})
 
+# Edits song queue with the specified user id.
 @app.route("/editSongQueue/<user_id>", methods=["GET", "POST"])
 def edit_song_queue(user_id):
     global user_queue, durations, global_queue
@@ -125,14 +127,14 @@ def edit_song_queue(user_id):
         return json.dumps({"error": "No user id assigned!"})
     
     # Set user_id song queue to what was received from frontend
-    if user_id not in user_queue:
-        user_queue[user_id] = []
+    # if user_id not in user_queue:
+    #     user_queue[user_id] = []
     # song_queue = json.loads(song_queue)
     user_queue[user_id] = []
     for song in song_queue:
-        user_queue[user_id].append([song[0], song[1]])
+        user_queue[user_id].append([song[0], song[1], song[2]])
         durations[song[0]] = int(song[2])
-
+    print(user_queue)
     global_queue = get_global_queue()
     return json.dumps({"queue": str(user_queue)})
 
@@ -166,7 +168,8 @@ def start_host():
 # Returns True if song has enough downvotes to go to next one.
 # False otherwise.
 def downvoted():
-    if sum(downvotes.values()) >= 2/3*round(len(downvotes.keys())):
+    print(downvotes.keys())
+    if sum(downvotes.values()) >= 2.0/3 * len(downvotes.keys()):
         return True
     return False
 
@@ -186,7 +189,7 @@ def set_token(code):
     if token != "":
         return
     client_id = "17c0a7046ec0463584f357c64e8ad530"
-    client_secret = str(os.environ['spotify_secret'])
+    client_secret = str(os.environ['spotify_secret']) # No peeking!
 
     url = "https://accounts.spotify.com/api/token"
     redirectURI = "http://192.168.1.185:5000/adminRoom"
@@ -216,6 +219,10 @@ def get_recommended():
     rec_song = r.json()["tracks"][0]
     # Return uri and duration of recommended song.
     print(r.status_code)
+    try:
+        curr_playing_song = [rec_song["uri"], rec_song["album"]["images"][0]["url"], rec_song["duration_ms"]]
+    except:
+        curr_playing_song = [rec_song["uri"], "", rec_song["duration_ms"]]
     return rec_song["uri"], rec_song["duration_ms"]
 
 # Gets time left in song. Used to make sure new song
@@ -243,7 +250,7 @@ def song_time_left() :
 # Gets the next song to be played, usually from a user but
 # can be a recommended song if no songs queued up by any users.
 def get_next_song():
-    global user_queue, curr_id, recent_songs
+    global user_queue, curr_id, recent_songs, global_queue, curr_playing_song
     if len(user_queue) == 0:
         print("NO USER IN ROOM")
         return json.dumps({"error": "No users in room."})
@@ -270,7 +277,10 @@ def get_next_song():
             break
 
     if not next_song:
-        next_song = user_queue[curr_id].pop()[0]
+        curr_playing_song = user_queue[curr_id][0]
+        next_song = user_queue[curr_id][0][0]
+        user_queue[curr_id] = user_queue[curr_id][1:]
+        global_queue = global_queue[1:]
         duration = durations.pop(next_song)
 
     # Only store song ID in recent_songs
@@ -279,6 +289,7 @@ def get_next_song():
     recent_songs = recent_songs[:5]
 
     print("Playing song: %s" % next_song)
+
     return next_song, duration
 
 # Plays song by creating a player playlist of length 1.
@@ -320,20 +331,30 @@ def play_song():
 def get_queue():
     def curr_queue():
         while 1:
-            yield "data: %s\n\n" % json.dumps(global_queue)
+            ret_data = {
+                "glob_queue": global_queue, 
+                "user_queue": dict(user_queue), 
+                "curr_song": curr_playing_song
+            }
+            print(curr_playing_song)
+            yield "data: %s\n\n" % json.dumps(ret_data)
             time.sleep(2)
     return Response(curr_queue(), mimetype="text/event-stream")
 
+# TODO - Global queue is playing from wrong end!!! (just like your mother last night)
+# Above todo comment is not true anymore but I kept it for historical purposes.
 
 # Gets all songs in order to be played to return to frontend.
 def get_global_queue():
     # Next index and id used since curr_id curr_index are currently playing, not in queue.
     # Copy user_queue locally to pop stuff.
     glob_q = copy.deepcopy(user_queue)
+    print(glob_q)
     if curr_id:
-        next_index = (list(glob_q.keys()).index(curr_id) + 1) % len(glob_q)
+        next_index = (list(glob_q.keys()).index(curr_id) + 1) % len(list(glob_q.keys()))
     else:
         next_index = 0
+    print(next_index)
 
     # return_queue holds list of songs to be played, in order
     return_queue = []
@@ -342,12 +363,14 @@ def get_global_queue():
     while len(glob_q) > 0:
         next_id = list(glob_q.keys())[next_index]
         if len(glob_q[next_id]) > 0:
-            return_queue = [[next_id, glob_q[next_id].pop()]] + return_queue
+            # return_queue = [[next_id, glob_q[next_id].pop()]] + return_queue
+            return_queue.append([next_id, glob_q[next_id][0]])
+            glob_q[next_id] = glob_q[next_id][1:]
         else:
             del glob_q[next_id]
 
         if len(glob_q) > 0:
-            next_index = next_index + 1 % len(glob_q)
+            next_index = (next_index + 1) % len(list(glob_q.keys()))
 
     return return_queue
 
@@ -355,5 +378,3 @@ def get_global_queue():
 # Main call
 # if __name__ == '__main__':
 #     socketio.run(app, host='0.0.0.0')
-
-# TODO - Phone not saving cookies
