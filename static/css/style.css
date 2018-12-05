@@ -7,17 +7,16 @@
 body {
     background-color: #333;
     color: white;
+    font-size: 16px;
 }
 
 #nameInput, #continue {
     display: none;
 }
 
-#songDiv {
-    width: 80%;
-    margin-top: 15vh;
-    height: 70vh;
-    overflow: auto;
+#songsList {
+    height: 100%;
+    overflow-y: auto;
 }
 
 #songsList > li {
@@ -28,7 +27,14 @@ body {
     background-color: #7C7B83;
 }
 
-#currPlaying {
+#songsList > .list-group-item {
+    color:#EEE;
+    background-color:#333;
+    border-bottom-color:#222;
+    border-top-color:#222;
+}
+
+#currPlayingImg {
     position: fixed;
     left: 0px;
     top: 0px;
@@ -38,24 +44,35 @@ body {
     padding: 5px;
 }
 
+#currPlayingInfo {
+    font-size: 2.5rem;
+}
+
 #downvote {
-    position: relative;
-    float: right;
-    height: 100%;
-    font-size: 10vh;
-    border: none !important;
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    font-size: 9vh;
+    border: none !important
+}
+
+#downvote:active {
+    border: none;
 }
 
 #userQueue {
     position: fixed;
     right: 0px;
     bottom: 0px;
+    top: 15vh;
     height: 85vh;
     width: 20%;
     border-left: 2px solid #444;
     padding: 5px;
     overflow-x: hidden;
     overflow-y: auto;
+    z-index: 50000;
+    background-color: #333;
 }
 
 #songQueue {
@@ -69,6 +86,8 @@ body {
     white-space: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
+    z-index: 50000;
+    background-color: #333;
 }
 
 #searchDiv {
@@ -76,6 +95,18 @@ body {
 }
 
 #searchBtn {
-    font-size: 34px;
+    padding: 0px;
+    margin-left: -35px;
+    z-index: 20000;
+    color: #4f86f7;
+}
+
+#searchBtn:active {
+    color: #4F86D1;
+}
+
+#searchBtnDiv {
+    background-color: transparent;
+    z-index: 10000;
     border: none;
 }

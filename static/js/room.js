@@ -9,10 +9,10 @@
 var queue = [];
 var glob_queue = []
 var queueEvent;
-var curr_song;
+var currSong = [];
 
 
-window.onunload = function() {
+window.onunload = function () {
     if (queueEvent) {
         queueEvent.close();
     }
@@ -38,30 +38,14 @@ window.onload = function () {
         if (ret_queue["user_queue"][getCookie("user_id")].toString() != queue.toString()) {
             updateUserQueue(ret_queue["user_queue"]);
         }
-        if (ret_queue["curr_song"] != curr_song) {
-            curr_song = ret_queue["curr_song"];
+        if (ret_queue["curr_song"].toString() != currSong.toString()) {
+            currSong = ret_queue["curr_song"];
             updateCurrSong();
-            // updateUserQueue(ret_queue["user_queue"]);
         }
     }
 
     /*************** Search Button ***************/
-    document.getElementById("searchBtn").onclick = function () {
-        // Search for a song
-        var searchTerm = encodeURI(document.getElementById("searchTerm").value);
-        fetch("/search/" + searchTerm, {
-            method: "POST",
-            credentials: "omit",
-            headers: {
-                "Content-Type": "application/json"
-            }
-        }).then(res => res.json()).then(
-            response => showSongs(response)
-        )
-            .catch(
-                error => console.error("Error!", error)
-            )
-    }
+    document.getElementById("searchBtn").onclick = search();
 
     /*************** Downvote Button ***************/
     document.getElementById("downvote").onclick = function (e) {
@@ -85,10 +69,12 @@ window.onload = function () {
             }
         }).then(res => res.json()).then(
             response => console.log(response)
+        ).catch(
+            error => console.error("Error!", error)
         )
-            .catch(
-                error => console.error("Error!", error)
-            )
+        setTimeout(function() {
+            document.getElementById("downvote").blur();
+        }, 200);
     }
 };
 
@@ -108,13 +94,14 @@ function showSongs(songs) {
             var albumImg = song["album"]["images"][0]["url"];
             img.src = albumImg;
             img.style.height = "64px";
+            img.style.paddingRight = "20px";
         }
         catch {
             console.log("ERROR!");
         }
         var node = document.createElement("li");
 
-        node.className = "list-group-item list-group-item-dark songpos-" + count;
+        node.className = "list-group-item songpos-" + count;
 
         node.onclick = function (e) {
             addToQueue(song["uri"], song["duration_ms"], song, e);
@@ -217,7 +204,17 @@ function updateSongQueue(updated_queue) {
 }
 
 function updateCurrSong() {
-    // TODO - update current song img at top
+    console.log(currSong);
+    var albumImg = currSong[1];
+    var imgNode = document.createElement("img");
+    imgNode.src = albumImg;
+    imgNode.style.height = "100%";
+
+
+    // document.getElementById("currPlayingInfo").innerHTML = "";
+    // document.getElementById("currPlayingInfo").appendChild(infoNode);
+    document.getElementById("currPlayingImg").innerHTML = "";
+    document.getElementById("currPlayingImg").appendChild(imgNode);
 }
 
 // From w3schools <3
@@ -235,4 +232,22 @@ function getCookie(cname) {
         }
     }
     return "";
+}
+
+// Searches for songs.
+function search() {
+    // Search for a song
+    var searchTerm = encodeURI(document.getElementById("searchTerm").value);
+    fetch("/search/" + searchTerm, {
+        method: "POST",
+        credentials: "omit",
+        headers: {
+            "Content-Type": "application/json"
+        }
+    }).then(res => res.json()).then(
+        response => showSongs(response)
+    ).catch(
+        error => console.error("Error!", error)
+    )
+    document.getElementById("searchTerm").blur();
 }
