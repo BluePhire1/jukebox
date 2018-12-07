@@ -49,14 +49,14 @@ window.onload = function () {
 
     /*************** Downvote Button ***************/
     document.getElementById("downvote").onclick = function (e) {
-        var node = e.target;
-        if (node.classList.contains("btn-outline-light")) {
-            node.classList.remove("btn-outline-light");
-            node.classList.add("btn-outline-primary");
-        }
-        else {
+        var node = document.getElementById("downvote");
+        if (node.classList.contains("btn-outline-primary")) {
             node.classList.remove("btn-outline-primary");
             node.classList.add("btn-outline-light");
+        }
+        else {
+            node.classList.remove("btn-outline-light");
+            node.classList.add("btn-outline-primary");
         }
         node.style.border = "0px solid transparent";
 
@@ -72,9 +72,6 @@ window.onload = function () {
         ).catch(
             error => console.error("Error!", error)
         )
-        setTimeout(function() {
-            document.getElementById("downvote").blur();
-        }, 200);
     }
 };
 
