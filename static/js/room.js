@@ -103,10 +103,16 @@ function showSongs(songs) {
         node.onclick = function (e) {
             addToQueue(song["uri"], song["duration_ms"], song, e);
         }
+
+        var nameContainer = document.createElement("p");
+        nameContainer.style.display = "inline";
+
         var name = document.createTextNode(song["name"]);
+
         node.style.fontSize = "24px";
         node.appendChild(img);
-        node.appendChild(name);
+        node.appendChild(nameContainer);
+        nameContainer.appendChild(name);
         document.getElementById("songsList").appendChild(node);
 
         count++;
@@ -115,33 +121,38 @@ function showSongs(songs) {
 
 function addToQueue(uri, duration, songData, elem) {
     var node = elem.target;
-    var userID = getCookie("user_id");
-    var albumImg = songData["album"]["images"][0]["url"];
-    // Add song to queue visually
-
-    var userQueueImg = document.createElement("img");
-    userQueueImg.src = albumImg
-    userQueueImg.style.width = "20vw";
-    document.getElementById("userQueue").appendChild(userQueueImg);
-
     // Color in div.
-    node.style.backgroundColor = "#4f86f7";
+    // node.closest("li").style.backgroundColor = "#4f86f7";
+    // Make div fade out
+    node.closest("li").classList.add("animated", "fadeOut");
+    setTimeout(function () {
+        node.remove();
+        var userID = getCookie("user_id");
+        var albumImg = songData["album"]["images"][0]["url"];
 
-    queue.push([uri, albumImg, duration]);
+        // Add song to queue visually
+        var userQueueImg = document.createElement("img");
+        userQueueImg.classList = "animated fadeIn"
+        userQueueImg.src = albumImg
+        userQueueImg.style.width = "100%";
+        document.getElementById("userQueue").appendChild(userQueueImg);
 
-    fetch("/editSongQueue/" + userID, {
-        body: JSON.stringify({ "song_queue": queue }),
-        method: "POST",
-        credentials: "omit",
-        headers: {
-            "Content-Type": "application/json"
-        }
-    }).then(res => res.json()).then(
-        response => console.log(response)
-    )
-        .catch(
+        queue.push([uri, albumImg, duration]);
+
+        fetch("/editSongQueue/" + userID, {
+            body: JSON.stringify({ "song_queue": queue }),
+            method: "POST",
+            credentials: "omit",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        }).then(res => res.json()).then(
+            response => console.log(response)
+        ).catch(
             error => console.error("Error!", error)
         )
+    }, 1000);
+
 
     // Add song to queue backend.
     // fetch("/queueSong/" + uri + "/" + duration + "/" + userID, {
@@ -176,7 +187,7 @@ function updateUserQueue(updated_queue) {
         var albumImg = song[1];
         var queueImg = document.createElement("img");
         queueImg.src = albumImg;
-        queueImg.style.width = "20vw";
+        queueImg.style.width = "100%";
         document.getElementById("userQueue").appendChild(queueImg);
     }
 }
@@ -194,7 +205,7 @@ function updateSongQueue(updated_queue) {
         queueImg.src = albumImg;
         queueImg.style.height = "calc(15vh - 10px)";
         if (userID == getCookie("user_id")) {
-            queueImg.style.border = "2px solid blue";
+            queueImg.style.border = "2px solid #4f86f7";
         }
         document.getElementById("songQueue").appendChild(queueImg);
     }
@@ -207,11 +218,17 @@ function updateCurrSong() {
     imgNode.src = albumImg;
     imgNode.style.height = "100%";
 
-
     // document.getElementById("currPlayingInfo").innerHTML = "";
     // document.getElementById("currPlayingInfo").appendChild(infoNode);
     document.getElementById("currPlayingImg").innerHTML = "";
     document.getElementById("currPlayingImg").appendChild(imgNode);
+
+    // Reset thumbs down
+    var node = document.getElementById("downvote");
+    if (node.classList.contains("btn-outline-primary")) {
+        node.classList.remove("btn-outline-primary");
+        node.classList.add("btn-outline-light");
+    }
 }
 
 // From w3schools <3

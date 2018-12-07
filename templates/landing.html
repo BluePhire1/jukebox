@@ -10,7 +10,7 @@
     <button type="button" id="joinRoom" class="btn btn-primary btn-lg">
         join room
     </button>
-    <form>
+    <form onsubmit="redirToRoom();return false;">
         <input type="text" id="nameInput" placeholder="What's your name?">
         <br>
         <button type="button" onclick="redirToRoom()" id="continue" class="btn btn-primary btn-lg">

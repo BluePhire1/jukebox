@@ -57,10 +57,12 @@ function hideContinue() {
 }
 
 function redirToRoom() {
-    // Store cookies first
-    var username = document.getElementById("nameInput").value;
-    setCookie("user_name", username, 360)
-    window.location.replace("/room");
+    if (document.getElementById("nameInput").value.length >= 2) {
+        // Store cookies first
+        var username = document.getElementById("nameInput").value;
+        setCookie("user_name", username, 360)
+        window.location.replace("/room");
+    }
 }
 
 // Stackoverflow <3

@@ -42,13 +42,17 @@ body {
     width: 100%;
     border-bottom: 2px solid #444;
     padding: 5px;
+    z-index: 10000;
+    background-color: #333;
 }
 
 #currPlayingInfo {
     font-size: 2.5rem;
+    z-index: 10001;
 }
 
 #downvote {
+    z-index: 10005;
     position: absolute;
     top: 5px;
     right: 5px;
@@ -85,8 +89,8 @@ body {
     right: 0px;
     bottom: 0px;
     top: 15vh;
-    height: 85vh;
-    width: 10%;
+    height: 70%;
+    width: 20%;
     border-left: 2px solid #444;
     padding: 5px;
     overflow-x: hidden;
@@ -100,7 +104,7 @@ body {
     left: 0px;
     bottom: 0px;
     height: 15vh;
-    width: 90%;
+    width: 100%;
     border-top: 2px solid #444;
     padding: 5px;
     white-space: nowrap;
@@ -117,8 +121,9 @@ body {
 #searchBtn {
     padding: 0px;
     margin-left: -35px;
-    z-index: 20000;
+    z-index: 900 !important;
     color: #4f86f7;
+    border: none !important;
 }
 
 #searchBtn:active {
